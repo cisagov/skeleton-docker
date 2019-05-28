@@ -41,7 +41,7 @@ repos:
         args:
           - --autofix
         # Exclude all Pipfile.lock files
-        # exclude: .*/Pipfile\.lock$
+        exclude: .*/Pipfile\.lock$
       - id: requirements-txt-fixer
       - id: trailing-whitespace
 
@@ -130,10 +130,24 @@ repos:
       - id: shellcheck
 
   # Python hooks
+  # Run bandit on the "tests" tree with a configuration
   - repo: https://github.com/PyCQA/bandit
     rev: 1.9.4
     hooks:
       - id: bandit
+        name: bandit (tests tree)
+        files: tests
+        args:
+          # Skip "assert used" check since assertions are used
+          # frequently in pytests.
+          - --skip=B101
+  # Run bandit on everything except the "tests" tree
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        name: bandit (everything else)
+        exclude: tests
   - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 26.5.1
     hooks:
