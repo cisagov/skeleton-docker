@@ -9,9 +9,26 @@ on:  # yamllint disable-line rule:truthy
   # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request
   pull_request:
   push:
+    branches:
+      - "**"
+    tags:
+      - v*.*.*
   repository_dispatch:
+    # Respond to rebuild requests. See: https://github.com/cisagov/action-apb/
     types:
       - apb
+  schedule:
+    - cron: 0 10 * * *  # everyday at 10am
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        default: dispatch
+        description: Tag to apply to pushed images
+        required: true
+      remote-shell:
+        default: "false"
+        description: Debug with remote shell
+        required: true
 
 # Set a default shell for any run steps. The `-Eueo pipefail` sets errtrace,
 # nounset, errexit, and pipefail. The `-x` will print all commands as they are
@@ -64,6 +81,9 @@ jobs:
           # this workflow.
           permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
   lint:
+    # Checks out the source and runs pre-commit hooks.  Detects coding errors
+    # and style deviations.
+    name: Lint sources
     needs:
       - diagnostics
     permissions:
@@ -184,6 +204,395 @@ jobs:
         run: pre-commit install-hooks
       - name: Run pre-commit on all files
         run: pre-commit run --all-files
+      - name: Setup tmate debug session
+        uses: mxschmitt/action-tmate@v3
+        if: env.RUN_TMATE
+  repo-metadata:
+    name: Gather repository metadata
+    needs:
+      - diagnostics
+    permissions:
+      # actions/checkout needs this to fetch code
+      contents: read
+    uses: ./.github/workflows/_repo-metadata.yml
+  prepare:
+    # Generate Docker image metadata using the docker/metadata-action GitHub Action.
+    name: Prepare build variables
+    needs:
+      - diagnostics
+      - repo-metadata
+    outputs:
+      labels: ${{ steps.generate-metadata.outputs.labels }}
+      tags: ${{ steps.generate-metadata.outputs.tags }}
+    permissions:
+      # actions/checkout needs this to fetch code
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply standard cisagov job preamble
+        uses: cisagov/action-job-preamble@v1
+        with:
+          # This functionality is poorly implemented and has been
+          # causing problems due to the MITM implementation hogging or
+          # leaking memory.  As a result we disable it by default.  If
+          # you want to temporarily enable it, simply set
+          # monitor_permissions equal to "true".
+          #
+          # TODO: Re-enable this functionality when practical.  See
+          # cisagov/skeleton-docker#224 for more details.
+          monitor_permissions: "false"
+          # Use a variable to specify the permissions monitoring
+          # configuration. By default this will yield the
+          # configuration stored in the cisagov organization-level
+          # variable, but if you want to use a different configuration
+          # then simply:
+          # 1. Create a repository-level variable with the name
+          # ACTIONS_PERMISSIONS_CONFIG.
+          # 2. Set this new variable's value to the configuration you
+          # want to use for this repository.
+          #
+          # Note in particular that changing the permissions
+          # monitoring configuration *does not* require you to modify
+          # this workflow.
+          permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
+      - uses: actions/checkout@v7
+      - id: generate-metadata
+        name: Generate Docker image metadata
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            ${{ needs.repo-metadata.outputs.image-name }}
+            ghcr.io/${{ needs.repo-metadata.outputs.image-name }}
+          tags: |
+            type=edge
+            type=raw,event=workflow_dispatch,value=${{ github.event.inputs.image-tag }}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=ref,event=tag
+            type=schedule
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}}
+            type=sha
+      - name: Setup tmate debug session
+        uses: mxschmitt/action-tmate@v3
+        if: github.event.inputs.remote-shell == 'true' || env.RUN_TMATE
+  build:
+    # Builds a single test image for the native platform.  This image is saved
+    # as an artifact and loaded by the test job.
+    name: Build test image
+    needs:
+      - diagnostics
+      - repo-metadata
+      - prepare
+    permissions:
+      # actions/checkout needs this to fetch code
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply standard cisagov job preamble
+        uses: cisagov/action-job-preamble@v1
+        with:
+          # This functionality is poorly implemented and has been
+          # causing problems due to the MITM implementation hogging or
+          # leaking memory.  As a result we disable it by default.  If
+          # you want to temporarily enable it, simply set
+          # monitor_permissions equal to "true".
+          #
+          # TODO: Re-enable this functionality when practical.  See
+          # cisagov/skeleton-docker#224 for more details.
+          monitor_permissions: "false"
+          # Use a variable to specify the permissions monitoring
+          # configuration. By default this will yield the
+          # configuration stored in the cisagov organization-level
+          # variable, but if you want to use a different configuration
+          # then simply:
+          # 1. Create a repository-level variable with the name
+          # ACTIONS_PERMISSIONS_CONFIG.
+          # 2. Set this new variable's value to the configuration you
+          # want to use for this repository.
+          #
+          # Note in particular that changing the permissions
+          # monitoring configuration *does not* require you to modify
+          # this workflow.
+          permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build image
+        id: docker_build
+        uses: docker/build-push-action@v7
+        with:
+          cache-from: type=gha
+          # We use the max mode to cache all layers which includes ones from
+          # intermediate steps. This will provide us the potential for more cache hits
+          # and thus better build times. It is also the suggested setting per the
+          # documentation:
+          # https://docs.docker.com/build/ci/github-actions/cache/#cache-backend-api
+          cache-to: type=gha,mode=max
+          # For a list of pre-defined annotation keys and value types see:
+          # https://github.com/opencontainers/image-spec/blob/master/annotations.md
+          labels: ${{ needs.prepare.outputs.labels }}
+          outputs: type=docker,dest=image.tar
+          # Uncomment the following option if you are building an image for use
+          # on Google Cloud Run or AWS Lambda. The current default image output
+          # is unable to run on either. Please see the following issue for more
+          # information: https://github.com/docker/buildx/issues/1533
+          # provenance: false
+          tags: ${{ needs.repo-metadata.outputs.image-name }}:latest  # not to be pushed
+      - name: Compress image
+        run: gzip image.tar
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: image.tar.gz
+      - name: Setup tmate debug session
+        uses: mxschmitt/action-tmate@v3
+        if: env.RUN_TMATE
+  scan:
+    name: Scan the image for vulnerabilities
+    needs:
+      - diagnostics
+      - repo-metadata
+      - build
+    permissions:
+      # actions/checkout needs this to fetch code
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply standard cisagov job preamble
+        uses: cisagov/action-job-preamble@v1
+        with:
+          # This functionality is poorly implemented and has been
+          # causing problems due to the MITM implementation hogging or
+          # leaking memory.  As a result we disable it by default.  If
+          # you want to temporarily enable it, simply set
+          # monitor_permissions equal to "true".
+          #
+          # TODO: Re-enable this functionality when practical.  See
+          # cisagov/skeleton-docker#224 for more details.
+          monitor_permissions: "false"
+          # Use a variable to specify the permissions monitoring
+          # configuration. By default this will yield the
+          # configuration stored in the cisagov organization-level
+          # variable, but if you want to use a different configuration
+          # then simply:
+          # 1. Create a repository-level variable with the name
+          # ACTIONS_PERMISSIONS_CONFIG.
+          # 2. Set this new variable's value to the configuration you
+          # want to use for this repository.
+          #
+          # Note in particular that changing the permissions
+          # monitoring configuration *does not* require you to modify
+          # this workflow.
+          permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: image.tar.gz
+      - name: Load Docker image
+        run: docker load < image.tar.gz
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ needs.repo-metadata.outputs.image-name }}:latest
+  test:
+    # Executes tests on the single-platform image created in the "build" job.
+    name: Test image
+    needs:
+      - diagnostics
+      - build
+    permissions:
+      # actions/checkout needs this to fetch code
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply standard cisagov job preamble
+        uses: cisagov/action-job-preamble@v1
+        with:
+          # This functionality is poorly implemented and has been
+          # causing problems due to the MITM implementation hogging or
+          # leaking memory.  As a result we disable it by default.  If
+          # you want to temporarily enable it, simply set
+          # monitor_permissions equal to "true".
+          #
+          # TODO: Re-enable this functionality when practical.  See
+          # cisagov/skeleton-docker#224 for more details.
+          monitor_permissions: "false"
+          # Use a variable to specify the permissions monitoring
+          # configuration. By default this will yield the
+          # configuration stored in the cisagov organization-level
+          # variable, but if you want to use a different configuration
+          # then simply:
+          # 1. Create a repository-level variable with the name
+          # ACTIONS_PERMISSIONS_CONFIG.
+          # 2. Set this new variable's value to the configuration you
+          # want to use for this repository.
+          #
+          # Note in particular that changing the permissions
+          # monitoring configuration *does not* require you to modify
+          # this workflow.
+          permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
+      - id: setup-env
+        uses: cisagov/setup-env-github-action@v2
+      - uses: actions/checkout@v7
+      - id: setup-python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ steps.setup-env.outputs.python-version }}
+      - name: Cache testing environments
+        uses: actions/cache@v6
+        env:
+          BASE_CACHE_KEY: >-
+            ${{ github.job }}-${{ runner.os }}-py${{
+            steps.setup-python.outputs.python-version }}-
+        with:
+          key: >-
+            ${{ env.BASE_CACHE_KEY }}${{ hashFiles(
+            '**/requirements-test.txt',
+            '**/requirements.txt') }}
+          path: ${{ env.PIP_CACHE_DIR }}
+          restore-keys: |
+            ${{ env.BASE_CACHE_KEY }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install --upgrade --requirement requirements-test.txt
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: image.tar.gz
+      - name: Load Docker image
+        run: docker load < image.tar.gz
+      - name: Run tests
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: pytest --runslow
+      - name: Setup tmate debug session
+        uses: mxschmitt/action-tmate@v3
+        if: env.RUN_TMATE
+  build-push-all:
+    # Builds the final set of images for each of the platforms specified in the
+    # "platforms" input for the docker/build-push-action Action.  These images
+    # are tagged with the Docker tags calculated in the "prepare" job and
+    # pushed to Docker Hub and the GitHub Container Registry.  The contents of
+    # README.md are pushed as the image's description to Docker Hub.  This job
+    # is skipped when the triggering event is a pull request.
+    if: github.event_name != 'pull_request'
+    name: Build and push all platforms
+    needs:
+      - diagnostics
+      - lint
+      - repo-metadata
+      - prepare
+      - scan
+      - test
+    permissions:
+      # actions/checkout needs this to fetch code
+      contents: read
+      # When Dependabot creates a PR it requires this permission in
+      # order to push Docker images to ghcr.io.
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply standard cisagov job preamble
+        uses: cisagov/action-job-preamble@v1
+        with:
+          # This functionality is poorly implemented and has been
+          # causing problems due to the MITM implementation hogging or
+          # leaking memory.  As a result we disable it by default.  If
+          # you want to temporarily enable it, simply set
+          # monitor_permissions equal to "true".
+          #
+          # TODO: Re-enable this functionality when practical.  See
+          # cisagov/skeleton-docker#224 for more details.
+          monitor_permissions: "false"
+          # Use a variable to specify the permissions monitoring
+          # configuration. By default this will yield the
+          # configuration stored in the cisagov organization-level
+          # variable, but if you want to use a different configuration
+          # then simply:
+          # 1. Create a repository-level variable with the name
+          # ACTIONS_PERMISSIONS_CONFIG.
+          # 2. Set this new variable's value to the configuration you
+          # want to use for this repository.
+          #
+          # Note in particular that changing the permissions
+          # monitoring configuration *does not* require you to modify
+          # this workflow.
+          permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      # We only build to ensure that the image layers are cached to push later. This is
+      # because if the build takes over 10 minutes the token acquired to push to the
+      # GitHub Container Registry will have expired. This results in errors like:
+      #
+      # <AuthenticationErrorDetail>Signature not valid in the specified time frame:
+      # Start [Tue, 08 Jul 2025 06:05:02 GMT] - Expiry [Tue, 08 Jul 2025 06:15:07 GMT]
+      # - Current [Tue, 08 Jul 2025 06:16:10 GMT]</AuthenticationErrorDetail>
+      #
+      # Please see https://github.com/docker/build-push-action/issues/1371 for more
+      # information.
+      - name: Build platform images
+        id: docker_build
+        uses: docker/build-push-action@v7
+        with:
+          cache-from: type=gha
+          # We use the max mode to cache all layers which includes ones from
+          # intermediate steps. This will provide us the potential for more cache hits
+          # and thus better build times. It is also the suggested setting per the
+          # documentation:
+          # https://docs.docker.com/build/ci/github-actions/cache/#cache-backend-api
+          cache-to: type=gha,mode=max
+          # For a list of pre-defined annotation keys and value types see:
+          # https://github.com/opencontainers/image-spec/blob/master/annotations.md
+          labels: ${{ needs.prepare.outputs.labels }}
+          platforms: ${{ join(fromJSON(needs.repo-metadata.outputs.image-platforms)) }}
+          # Uncomment the following option if you are building an image for use
+          # on Google Cloud Run or AWS Lambda. The current default image output
+          # is unable to run on either. Please see the following issue for more
+          # information: https://github.com/docker/buildx/issues/1533
+          # provenance: false
+          tags: ${{ needs.prepare.outputs.tags }}
+      # Now that the image layers should be available from the cache we can push to the
+      # registries.
+      - name: Push platform images to registries
+        id: docker_push
+        uses: docker/build-push-action@v7
+        with:
+          cache-from: type=gha
+          # We use the max mode to cache all layers which includes ones from
+          # intermediate steps. This will provide us the potential for more cache hits
+          # and thus better build times. It is also the suggested setting per the
+          # documentation:
+          # https://docs.docker.com/build/ci/github-actions/cache/#cache-backend-api
+          cache-to: type=gha,mode=max
+          # For a list of pre-defined annotation keys and value types see:
+          # https://github.com/opencontainers/image-spec/blob/master/annotations.md
+          labels: ${{ needs.prepare.outputs.labels }}
+          platforms: ${{ join(fromJSON(needs.repo-metadata.outputs.image-platforms)) }}
+          # Uncomment the following option if you are building an image for use
+          # on Google Cloud Run or AWS Lambda. The current default image output
+          # is unable to run on either. Please see the following issue for more
+          # information: https://github.com/docker/buildx/issues/1533
+          # provenance: false
+          push: true
+          tags: ${{ needs.prepare.outputs.tags }}
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
         if: env.RUN_TMATE
