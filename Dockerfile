@@ -24,11 +24,7 @@ py-pip
 
 WORKDIR ${CISA_HOME}
 
-RUN wget -O sourcecode.tgz https://github.com/cisagov/skeleton-python-library/archive/v${VERSION}.tar.gz && \
-  tar xzf sourcecode.tgz --strip-components=1 && \
-  pip install --requirement requirements.txt && \
-  ln -snf /run/secrets/quote.txt src/example/data/secret.txt && \
-  rm sourcecode.tgz
+RUN pip install --no-cache-dir https://github.com/cisagov/skeleton-python-library/archive/v${VERSION}.tar.gz
 
 USER cisa
 
