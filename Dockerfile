@@ -22,20 +22,26 @@ RUN addgroup --system --gid ${CISA_UID} cisa \
 
 RUN apk --update --no-cache add \
 ca-certificates \
-openssl \
-py3-pip \
-py3-setuptools \
-py3-wheel
+openssl
 
+USER ${CISA_USER}
 WORKDIR ${CISA_HOME}
+
+ENV VIRTUAL_ENV="${CISA_HOME}/.venv"
+
+RUN python3 -m venv ${VIRTUAL_ENV}
+ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
+
+RUN python3 -m pip install --no-cache-dir --upgrade \
+  pip==22.2.2 \
+  setuptools==65.3.0 \
+  wheel==0.37.1
 
 RUN wget -O sourcecode.tgz https://github.com/cisagov/skeleton-python-library/archive/v${VERSION}.tar.gz \
   && tar xzf sourcecode.tgz --strip-components=1 \
   && python3 -m pip install --no-cache-dir --requirement requirements.txt \
   && ln -snf /run/secrets/quote.txt src/example/data/secret.txt \
   && rm sourcecode.tgz
-
-USER ${CISA_USER}
 
 EXPOSE 8080/TCP
 VOLUME ["/var/log"]
