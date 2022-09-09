@@ -45,5 +45,5 @@ RUN wget -O sourcecode.tgz https://github.com/cisagov/skeleton-python-library/ar
 
 EXPOSE 8080/TCP
 VOLUME ["/var/log"]
-ENTRYPOINT ["example"]
+ENTRYPOINT ["python3", "-m", "example"]
 CMD ["--log-level", "DEBUG"]
