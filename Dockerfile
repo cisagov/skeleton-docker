@@ -23,7 +23,9 @@ RUN addgroup --system --gid ${CISA_UID} cisa \
 RUN apk --update --no-cache add \
 ca-certificates \
 openssl \
-py-pip
+py3-pip \
+py3-setuptools \
+py3-wheel
 
 WORKDIR ${CISA_HOME}
 
