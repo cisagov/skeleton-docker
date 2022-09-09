@@ -21,8 +21,8 @@ RUN addgroup --system --gid ${CISA_UID} cisa \
   && adduser --system --uid ${CISA_UID} --ingroup ${CISA_GROUP} ${CISA_USER}
 
 RUN apk --update --no-cache add \
-ca-certificates \
-openssl
+  ca-certificates=20220614-r0 \
+  openssl=1.1.1q-r0
 
 USER ${CISA_USER}
 WORKDIR ${CISA_HOME}
