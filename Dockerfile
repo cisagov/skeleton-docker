@@ -11,11 +11,14 @@ LABEL org.opencontainers.image.authors="mark.feldhousen@cisa.dhs.gov"
 LABEL org.opencontainers.image.vendor="Cybersecurity and Infrastructure Security Agency"
 
 ARG CISA_UID=421
-ENV CISA_HOME="/home/cisa"
+ARG CISA_GID=${CISA_UID}
+ENV CISA_USER="cisa"
+ENV CISA_GROUP=${CISA_USER}
+ENV CISA_HOME="/home/${CISA_USER}"
 ENV ECHO_MESSAGE="Hello World from Dockerfile"
 
 RUN addgroup --system --gid ${CISA_UID} cisa \
-  && adduser --system --uid ${CISA_UID} --ingroup cisa cisa
+  && adduser --system --uid ${CISA_UID} --ingroup ${CISA_GROUP} ${CISA_USER}
 
 RUN apk --update --no-cache add \
 ca-certificates \
@@ -30,7 +33,7 @@ RUN wget -O sourcecode.tgz https://github.com/cisagov/skeleton-python-library/ar
   ln -snf /run/secrets/quote.txt src/example/data/secret.txt && \
   rm sourcecode.tgz
 
-USER cisa
+USER ${CISA_USER}
 
 EXPOSE 8080/TCP
 VOLUME ["/var/log"]
