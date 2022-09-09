@@ -18,9 +18,8 @@ RUN addgroup --system --gid ${CISA_UID} cisa \
   && adduser --system --uid ${CISA_UID} --ingroup cisa cisa
 
 RUN apk --update --no-cache add \
-ca-certificates \
-openssl \
-py-pip
+  ca-certificates=20220614-r0 \
+  openssl=1.1.1q-r0
 
 WORKDIR ${CISA_HOME}
 
