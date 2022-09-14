@@ -10,6 +10,7 @@ import pytest
 
 ENV_VAR = "ECHO_MESSAGE"
 ENV_VAR_VAL = "Hello World from docker compose!"
+DIVISION_RESULT = "4 / 2 == 2.000000"
 READY_MESSAGE = "This is a debug message"
 SECRET_QUOTE = (
     "There are no secrets better kept than the secrets everybody guesses."  # nosec
@@ -52,6 +53,10 @@ def test_output(main_container):
     """Verify the container had the correct output."""
     main_container.wait()  # make sure container exited if running test isolated
     log_output = main_container.logs().decode("utf-8")
+    assert DIVISION_RESULT in log_output, "Division result not found in log output."
+    assert (
+        ENV_VAR_VAL in log_output
+    ), "Environment variable value not found in log output."
     assert SECRET_QUOTE in log_output, "Secret not found in log output."
 
 
