@@ -380,7 +380,7 @@ jobs:
         run: ./buildx-dockerfile.sh
       - name: Build and push platform images to registries
         id: docker_build
-        uses: docker/build-push-action@v4
+        uses: cisagov/github-actions-workflows/.github/workflows/docker-build-image.yml@first-commits
         with:
           build-args: |
             VERSION=${{ needs.prepare.outputs.source_version }}
