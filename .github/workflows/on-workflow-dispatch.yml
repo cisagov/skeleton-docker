@@ -2,10 +2,11 @@
 name: Call a reusable workflow
 
 on:
+ push:
  pull_request:
-    branches:
-      - reusable-workflows
+  branches:
+   - reusable-workflows
 
 jobs:
-  call-workflow:
-    uses: cisagov/github-actions-workflows/.github/workflows/dependency-review.yml@first-commits
+ call-workflow:
+  uses: cisagov/github-actions-workflows/.github/workflows/dependency-review.yml@first-commits
