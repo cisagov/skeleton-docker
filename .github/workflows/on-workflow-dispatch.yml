@@ -1,7 +1,10 @@
 ---
 name: Call a reusable workflow
 
-on: push
+on:
+ pull_request:
+    branches:
+      - reusable-workflows
 
 jobs:
   call-workflow:
