@@ -248,7 +248,7 @@ jobs:
         run: mkdir -p dist
       - name: Build image
         id: docker_build
-        uses: cisagov/github-actions-workflows/.github/workflows/docker-build-image.yml@first-commits
+        uses: docker/build-push-action@v4
         with:
           build-args: |
             VERSION=${{ needs.prepare.outputs.source_version }}

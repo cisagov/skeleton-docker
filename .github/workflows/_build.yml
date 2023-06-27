@@ -1,0 +1,40 @@
+---
+name: "Build"
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*.*.*"
+  pull_request:
+  schedule:
+    - cron: "0 10 * * *"  # everyday at 10am
+  repository_dispatch:
+    # Respond to rebuild requests. See: https://github.com/cisagov/action-apb/
+    types: [apb]
+  workflow_dispatch:
+    inputs:
+      remote-shell:
+        description: "Debug with remote shell"
+        required: true
+        default: "false"
+      image-tag:
+        description: "Tag to apply to pushed images"
+        required: true
+        default: "dispatch"
+
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  config:
+    name: "Config"
+    uses: cisagov/github-actions-workflows/.github/workflows/_config.yml@first-commits
+  lint:
+    name: "Lint"
+    needs:
+      - config
+    uses: cisagov/github-actions-workflows/.github/workflows/common-lint.yml@first-commits

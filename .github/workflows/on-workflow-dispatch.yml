@@ -1,14 +1,10 @@
 ---
 name: Call a reusable workflow
 
-on:
- pull_request:
-  branches:
-   - reusable-workflows
+on: push
 
 jobs:
  dependency-review:
   uses: cisagov/github-actions-workflows/.github/workflows/dependency-review.yml@first-commits
  codeql-analysis:
   uses: cisagov/github-actions-workflows/.github/workflows/codeql-analysis.yml@first-commits
-  
