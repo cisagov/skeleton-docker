@@ -32,7 +32,7 @@ env:
   PLATFORMS: "linux/amd64,linux/arm/v6,linux/arm/v7,\
   linux/arm64,linux/ppc64le,linux/s390x"
   PRE_COMMIT_CACHE_DIR: ~/.cache/pre-commit
-  RUN_TMATE: ${{ secrets.RUN_TMATE }}
+  RUN_TMATE: ${{ github.event.inputs.remote-shell == 'true' || secrets.RUN_TMATE }}
 
 jobs:
   lint:
