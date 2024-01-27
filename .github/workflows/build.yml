@@ -271,6 +271,58 @@ jobs:
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
         if: github.event.inputs.remote-shell == 'true' || env.RUN_TMATE
+  docker-metadata:
+    name: Gather Docker metadata
+    needs:
+      - diagnostics
+    outputs:
+      json: ${{ steps.docker-metadata.outputs.json }}
+      labels: ${{ steps.docker-metadata.outputs.labels }}
+      tags: ${{ steps.docker-metadata.outputs.tags }}
+      version: ${{ steps.docker-metadata.outputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: harden-runner
+        name: Harden the runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+      - id: docker-metadata
+        name: Gather metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+  metadata:
+    name: Output metadata
+    needs:
+      - diagnostics
+      - prepare
+      - docker-metadata
+    runs-on: ubuntu-latest
+    steps:
+      - id: harden-runner
+        name: Harden the runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+      - name: Output metadata from the prepare job
+        run: |
+          echo "created=${{ needs.prepare.outputs.created }}"
+          echo "repometa=${{ needs.prepare.outputs.repometa }}"
+          echo "source_version=${{ needs.prepare.outputs.source_version }}"
+          echo "tags=${{ needs.prepare.outputs.tags }}"
+      - name: Output metadata from the docker-metadata job
+        run: |
+          echo "json=${{ needs.docker-metadata.outputs.json }}"
+          echo "labels=${{ needs.docker-metadata.outputs.labels }}"
+          echo "tags=${{ needs.docker-metadata.outputs.tags }}"
+          echo "version=${{ needs.docker-metadata.outputs.version }}"
   build:
     # Builds a single test image for the native platform.  This image is saved
     # as an artifact and loaded by the test job.
