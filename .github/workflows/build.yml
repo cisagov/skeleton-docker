@@ -291,7 +291,9 @@ jobs:
         name: Gather metadata
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: |
+            ${{ env.IMAGE_NAME }}
+            ghcr.io/${{ env.IMAGE_NAME }}
           tags: |
             type=schedule
             type=semver,pattern={{version}}
