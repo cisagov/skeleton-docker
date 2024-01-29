@@ -525,8 +525,6 @@ jobs:
           key: ${{ env.BASE_CACHE_KEY }}${{ github.sha }}
           restore-keys: |
             ${{ env.BASE_CACHE_KEY }}
-      - name: Create cross-platform support Dockerfile-x
-        run: ./buildx-dockerfile.sh
       - name: Build and push platform images to registries
         id: docker_build
         uses: docker/build-push-action@v5
@@ -536,7 +534,7 @@ jobs:
           cache-from: type=local,src=${{ env.BUILDX_CACHE_DIR }}
           cache-to: type=local,dest=${{ env.BUILDX_CACHE_DIR }}
           context: .
-          file: ./Dockerfile-x
+          file: ./Dockerfile
           platforms: ${{ env.PLATFORMS }}
           # Uncomment the following option if you are building an image for use
           # on Google Cloud Run or AWS Lambda. The current default image output
