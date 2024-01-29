@@ -517,8 +517,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare
-        id: prepare
+      - name: Sanitize platform
+        id: sanitize
         run: |
           platform=${{ matrix.platform }}
           echo "platform_pair=${platform//\//-}" >> $GITHUB_OUTPUT
@@ -550,6 +550,8 @@ jobs:
           key: ${{ env.BASE_CACHE_KEY }}${{ github.sha }}
           restore-keys: |
             ${{ env.BASE_CACHE_KEY }}
+      - name: Output source version to use
+        run: echo "${{ needs.prepare.outputs.source_version }}"
       - name: Build and push by digest (Docker Hub)
         id: build
         uses: docker/build-push-action@v5
@@ -581,7 +583,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
-          name: digests-${{ steps.prepare.outputs.platform_pair }}
+          name: digests-${{ steps.sanitize.outputs.platform_pair }}
           path: /tmp/digests/*
           retention-days: 1
   merge-images:
@@ -610,11 +612,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Prepare
-        id: prepare
-        run: |
-          platform=${{ matrix.platform }}
-          echo "platform_pair=${platform//\//-}" >> $GITHUB_OUTPUT
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
