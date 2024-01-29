@@ -490,8 +490,8 @@ jobs:
       fail-fast: true
       matrix:
         image:
-          - ${{ env.IMAGE_NAME }}
-          - ghcr.io/${{ env.IMAGE_NAME }}
+          - cisagov/example
+          - ghcr.io/cisagov/example
         platform:
           - linux/386
           - linux/amd64
@@ -589,8 +589,8 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - ${{ env.IMAGE_NAME }}
-          - ghcr.io/${{ env.IMAGE_NAME }}
+          - cisagov/example
+          - ghcr.io/cisagov/example
     steps:
       - id: harden-runner
         name: Harden the runner
