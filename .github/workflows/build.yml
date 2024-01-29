@@ -474,25 +474,32 @@ jobs:
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
         if: env.RUN_TMATE
-  build-push-all:
-    # Builds the final set of images for each of the platforms listed in
-    # PLATFORMS environment variable.  These images are tagged with the Docker
-    # tags calculated in the "prepare" job and pushed to Docker Hub and the
-    # GitHub Container Registry.  The contents of README.md are pushed as the
-    # image's description to Docker Hub.  This job is skipped when the
-    # triggering event is a pull request.
+  build-images:
     if: github.event_name != 'pull_request'
-    name: Build and push all platforms
+    name: Build and push ${{ matrix.platform }} image
     needs:
       - diagnostics
       - lint
-      - prepare
       - test
-    # When Dependabot creates a PR it requires this permission in
+        # When Dependabot creates a PR it requires this permission in
     # order to push Docker images to ghcr.io.
     permissions:
       packages: write
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        image:
+          - ${{ env.IMAGE_NAME }}
+          - ghcr.io/${{ env.IMAGE_NAME }}
+        platform:
+          - linux/386
+          - linux/amd64
+          - linux/arm/v6
+          - linux/arm/v7
+          - linux/arm64
+          - linux/ppc64le
+          - linux/s390x
     steps:
       - id: harden-runner
         name: Harden the runner
@@ -512,6 +519,28 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Prepare
+        id: prepare
+        run: |
+          image=${{ matrix.image }}
+          echo "image_pair=${image//\//-}" >> $GITHUB_OUTPUT
+          platform=${{ matrix.platform }}
+          echo "platform_pair=${platform//\//-}" >> $GITHUB_OUTPUT
+      - name: Generate metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.IMAGE_NAME }}
+            ghcr.io/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=schedule
+            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}}
+            type=sha
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -519,60 +548,224 @@ jobs:
       - name: Cache Docker layers
         uses: actions/cache@v3
         env:
-          BASE_CACHE_KEY: buildx-${{ runner.os }}-
+          BASE_CACHE_KEY: ${{ github.job }}-${{ runner.os }}-${{ matrix.platform }}-
         with:
           path: ${{ env.BUILDX_CACHE_DIR }}
           key: ${{ env.BASE_CACHE_KEY }}${{ github.sha }}
           restore-keys: |
             ${{ env.BASE_CACHE_KEY }}
-      - name: Build and push platform images to registries
-        id: docker_build
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v5
         with:
-          build-args: |
-            VERSION=${{ needs.prepare.outputs.source_version }}
-          cache-from: type=local,src=${{ env.BUILDX_CACHE_DIR }}
-          cache-to: type=local,dest=${{ env.BUILDX_CACHE_DIR }}
           context: .
-          file: ./Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          # Uncomment the following option if you are building an image for use
-          # on Google Cloud Run or AWS Lambda. The current default image output
-          # is unable to run on either. Please see the following issue for more
-          # information: https://github.com/docker/buildx/issues/1533
-          # provenance: false
-          push: true
-          tags: ${{ needs.prepare.outputs.tags }}
-          # For a list of pre-defined annotation keys and value types see:
-          # https://github.com/opencontainers/image-spec/blob/master/annotations.md
-          labels: "\
-            org.opencontainers.image.created=${{
-              needs.prepare.outputs.created }}
-
-            org.opencontainers.image.description=${{
-              fromJson(needs.prepare.outputs.repometa).description }}
-
-            org.opencontainers.image.licenses=${{
-              fromJson(needs.prepare.outputs.repometa).license.spdx_id }}
-
-            org.opencontainers.image.revision=${{ github.sha }}
-
-            org.opencontainers.image.source=${{
-              fromJson(needs.prepare.outputs.repometa).clone_url }}
-
-            org.opencontainers.image.title=${{
-              fromJson(needs.prepare.outputs.repometa).name }}
-
-            org.opencontainers.image.url=${{
-              fromJson(needs.prepare.outputs.repometa).html_url }}
-
-            org.opencontainers.image.version=${{
-              needs.prepare.outputs.source_version }}"
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          outputs: type=image,name=${{ matrix.image }},push-by-digest=true,\
+            name-canonical=true,push=true
+      - name: Export digest
+        run: |
+          mkdir --parents /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: error
+          name: digests-${{ steps.prepare.outputs.image_pair }}-\
+            ${{ steps.prepare.outputs.platform_pair }}
+          path: /tmp/digests/*
+          retention-days: 1
+  merge-images:
+    if: github.event_name != 'pull_request'
+    name: Merge ${{ matrix.image }} images
+    needs:
+      - diagnostics
+      - lint
+      - test
+      - build-images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - ${{ env.IMAGE_NAME }}
+          - ghcr.io/${{ env.IMAGE_NAME }}
+    steps:
+      - id: harden-runner
+        name: Harden the runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare
+        id: prepare
+        run: |
+          image=${{ matrix.image }}
+          echo "image_pair=${image//\//-}" >> $GITHUB_OUTPUT
+          platform=${{ matrix.platform }}
+          echo "platform_pair=${platform//\//-}" >> $GITHUB_OUTPUT
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ steps.prepare.outputs.image_pair }}-*
+          merge-multiple: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - id: metadata
+        name: Gather metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=schedule
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' \
+            <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ matrix.image }}@sha256:%s ' *)
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect \
+          ${{ matrix.image }}:${{ steps.metadata.outputs.version }}
+  push-readme:
+    if: github.event_name != 'pull_request'
+    name: Push the README to Docker Hub
+    needs:
+      - diagnostics
+      - merge-images
+    runs-on: ubuntu-latest
+    steps:
+      - id: harden-runner
+        name: Harden the runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Publish README.md to Docker Hub
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: ./push_readme.sh
-      - name: Setup tmate debug session
-        uses: mxschmitt/action-tmate@v3
-        if: env.RUN_TMATE
+  # build-push-all:
+  #   # Builds the final set of images for each of the platforms listed in
+  #   # PLATFORMS environment variable.  These images are tagged with the Docker
+  #   # tags calculated in the "prepare" job and pushed to Docker Hub and the
+  #   # GitHub Container Registry.  The contents of README.md are pushed as the
+  #   # image's description to Docker Hub.  This job is skipped when the
+  #   # triggering event is a pull request.
+  #   if: github.event_name != 'pull_request'
+  #   name: Build and push all platforms
+  #   needs:
+  #     - diagnostics
+  #     - lint
+  #     - prepare
+  #     - test
+  #   # When Dependabot creates a PR it requires this permission in
+  #   # order to push Docker images to ghcr.io.
+  #   permissions:
+  #     packages: write
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - id: harden-runner
+  #       name: Harden the runner
+  #       uses: step-security/harden-runner@v2
+  #       with:
+  #         egress-policy: audit
+  #     - name: Login to Docker Hub
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+  #     - name: Login to GitHub Container Registry
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: ghcr.io
+  #         username: ${{ github.actor }}
+  #         password: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@v3
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
+  #     - name: Cache Docker layers
+  #       uses: actions/cache@v3
+  #       env:
+  #         BASE_CACHE_KEY: buildx-${{ runner.os }}-
+  #       with:
+  #         path: ${{ env.BUILDX_CACHE_DIR }}
+  #         key: ${{ env.BASE_CACHE_KEY }}${{ github.sha }}
+  #         restore-keys: |
+  #           ${{ env.BASE_CACHE_KEY }}
+  #     - name: Build and push platform images to registries
+  #       id: docker_build
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         build-args: |
+  #           VERSION=${{ needs.prepare.outputs.source_version }}
+  #         cache-from: type=local,src=${{ env.BUILDX_CACHE_DIR }}
+  #         cache-to: type=local,dest=${{ env.BUILDX_CACHE_DIR }}
+  #         context: .
+  #         file: ./Dockerfile
+  #         platforms: ${{ env.PLATFORMS }}
+  #         # Uncomment the following option if you are building an image for use
+  #         # on Google Cloud Run or AWS Lambda. The current default image output
+  #         # is unable to run on either. Please see the following issue for more
+  #         # information: https://github.com/docker/buildx/issues/1533
+  #         # provenance: false
+  #         push: true
+  #         tags: ${{ needs.prepare.outputs.tags }}
+  #         # For a list of pre-defined annotation keys and value types see:
+  #         # https://github.com/opencontainers/image-spec/blob/master/annotations.md
+  #         labels: "\
+  #           org.opencontainers.image.created=${{
+  #             needs.prepare.outputs.created }}
+
+  #           org.opencontainers.image.description=${{
+  #             fromJson(needs.prepare.outputs.repometa).description }}
+
+  #           org.opencontainers.image.licenses=${{
+  #             fromJson(needs.prepare.outputs.repometa).license.spdx_id }}
+
+  #           org.opencontainers.image.revision=${{ github.sha }}
+
+  #           org.opencontainers.image.source=${{
+  #             fromJson(needs.prepare.outputs.repometa).clone_url }}
+
+  #           org.opencontainers.image.title=${{
+  #             fromJson(needs.prepare.outputs.repometa).name }}
+
+  #           org.opencontainers.image.url=${{
+  #             fromJson(needs.prepare.outputs.repometa).html_url }}
+
+  #           org.opencontainers.image.version=${{
+  #             needs.prepare.outputs.source_version }}"
+  #     - name: Publish README.md to Docker Hub
+  #       env:
+  #         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  #         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  #       run: ./push_readme.sh
+  #     - name: Setup tmate debug session
+  #       uses: mxschmitt/action-tmate@v3
+  #       if: env.RUN_TMATE
