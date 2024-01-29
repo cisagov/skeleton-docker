@@ -480,6 +480,7 @@ jobs:
     needs:
       - diagnostics
       - lint
+      - prepare
       - test
         # When Dependabot creates a PR it requires this permission in
     # order to push Docker images to ghcr.io.
@@ -553,6 +554,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v5
         with:
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.source_version }}
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.metadata.outputs.labels }}
@@ -562,6 +565,8 @@ jobs:
         id: build-ghcr
         uses: docker/build-push-action@v5
         with:
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.source_version }}
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.metadata.outputs.labels }}
