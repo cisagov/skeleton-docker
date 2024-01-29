@@ -489,9 +489,6 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        image:
-          - cisagov/example
-          - ghcr.io/cisagov/example
         platform:
           - linux/386
           - linux/amd64
@@ -522,8 +519,6 @@ jobs:
       - name: Prepare
         id: prepare
         run: |
-          image=${{ matrix.image }}
-          echo "image_pair=${image//\//-}" >> $GITHUB_OUTPUT
           platform=${{ matrix.platform }}
           echo "platform_pair=${platform//\//-}" >> $GITHUB_OUTPUT
       - name: Generate metadata
@@ -554,14 +549,23 @@ jobs:
           key: ${{ env.BASE_CACHE_KEY }}${{ github.sha }}
           restore-keys: |
             ${{ env.BASE_CACHE_KEY }}
-      - name: Build and push by digest
+      - name: Build and push by digest (Docker Hub)
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.metadata.outputs.labels }}
-          outputs: type=image,name=${{ matrix.image }},push-by-digest=true,\
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,\
+            name-canonical=true,push=true
+      - name: Build and push by digest (GitHub Container Registry)
+        id: build-ghcr
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ env.IMAGE_NAME }},push-by-digest=true,\
             name-canonical=true,push=true
       - name: Export digest
         run: |
@@ -572,8 +576,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
-          name: digests-${{ steps.prepare.outputs.image_pair }}-\
-            ${{ steps.prepare.outputs.platform_pair }}
+          name: digests-${{ steps.prepare.outputs.platform_pair }}
           path: /tmp/digests/*
           retention-days: 1
   merge-images:
@@ -585,12 +588,6 @@ jobs:
       - test
       - build-images
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        image:
-          - cisagov/example
-          - ghcr.io/cisagov/example
     steps:
       - id: harden-runner
         name: Harden the runner
@@ -611,15 +608,13 @@ jobs:
       - name: Prepare
         id: prepare
         run: |
-          image=${{ matrix.image }}
-          echo "image_pair=${image//\//-}" >> $GITHUB_OUTPUT
           platform=${{ matrix.platform }}
           echo "platform_pair=${platform//\//-}" >> $GITHUB_OUTPUT
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-${{ steps.prepare.outputs.image_pair }}-*
+          pattern: digests-*
           merge-multiple: true
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -636,13 +631,20 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha
-      - name: Create manifest list and push
+      - name: Create manifest list and push (Docker Hub)
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' \
+            $(jq -cr '.tags | map("--tag " + .) | join(" ")' \
             <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ matrix.image }}@sha256:%s ' *)
+            $(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
+      - name: Create manifest list and push (GitHub Container Registry)
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("--tag " + .) | join(" ")' \
+            <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'ghcr.io/${{ env.IMAGE_NAME }}@sha256:%s ' *)
       - name: Inspect image
         run: |
           docker buildx imagetools inspect \
