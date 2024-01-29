@@ -317,16 +317,32 @@ jobs:
           egress-policy: audit
       - name: Output metadata from the prepare job
         run: |
-          echo "created=${{ needs.prepare.outputs.created }}"
-          echo "repometa=${{ needs.prepare.outputs.repometa }}"
-          echo "source_version=${{ needs.prepare.outputs.source_version }}"
-          echo "tags=${{ needs.prepare.outputs.tags }}"
+          echo "::group::prepare created"
+          echo "${{ needs.prepare.outputs.created }}"
+          echo "::endgroup::"
+          echo "::group::prepare repometa"
+          echo "${{ needs.prepare.outputs.repometa }}"
+          echo "::endgroup::"
+          echo "::group::prepare source_version"
+          echo "${{ needs.prepare.outputs.source_version }}"
+          echo "::endgroup::"
+          echo "::group::prepare tags"
+          echo "${{ needs.prepare.outputs.tags }}"
+          echo "::endgroup::"
       - name: Output metadata from the docker-metadata job
         run: |
-          echo "json=${{ needs.docker-metadata.outputs.json }}"
-          echo "labels=${{ needs.docker-metadata.outputs.labels }}"
-          echo "tags=${{ needs.docker-metadata.outputs.tags }}"
-          echo "version=${{ needs.docker-metadata.outputs.version }}"
+          echo "::group::docker-metadata json"
+          echo "${{ needs.docker-metadata.outputs.json }}"
+          echo "::endgroup::"
+          echo "::group::docker-metadata labels"
+          echo "${{ needs.docker-metadata.outputs.labels }}"
+          echo "::endgroup::"
+          echo "::group::docker-metadata tags"
+          echo "${{ needs.docker-metadata.outputs.tags }}"
+          echo "::endgroup::"
+          echo "::group::docker-metadata version"
+          echo "${{ needs.docker-metadata.outputs.version }}"
+          echo "::endgroup::"
   build:
     # Builds a single test image for the native platform.  This image is saved
     # as an artifact and loaded by the test job.
