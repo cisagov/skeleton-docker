@@ -35,7 +35,7 @@ defaults:
 env:
   BUILDX_CACHE_DIR: ~/.cache/buildx
   CURL_CACHE_DIR: ~/.cache/curl
-  IMAGE_NAME: cisagov/example
+  IMAGE_NAME: ${{ vars.image_name }}
   PIP_CACHE_DIR: ~/.cache/pip
   PLATFORMS: "linux/amd64,linux/arm/v6,linux/arm/v7,\
   linux/arm64,linux/ppc64le,linux/s390x"
@@ -484,7 +484,7 @@ jobs:
         if: env.RUN_TMATE
   build-images:
     if: github.event_name != 'pull_request'
-    name: Build and push ${{ matrix.platform }} image
+    name: Build and push ${{ matrix.platform }} ${{ matrix.image }} image
     needs:
       - diagnostics
       - lint
@@ -498,6 +498,9 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        image:
+          - ${{ vars.image_name }}
+          - ghcr.io/${{ vars.image_name }}
         platform:
           - linux/386
           - linux/amd64
@@ -525,18 +528,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Sanitize platform
+      - name: Sanitize image name and platform
         id: sanitize
         run: |
+          image=${{ matrix.image }}
+          echo "image_pair=${image//\//-}" >> $GITHUB_OUTPUT
           platform=${{ matrix.platform }}
           echo "platform_pair=${platform//\//-}" >> $GITHUB_OUTPUT
       - name: Generate metadata
         id: metadata
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.IMAGE_NAME }}
-            ghcr.io/${{ env.IMAGE_NAME }}
+          images: ${{ matrix.image }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -552,7 +555,8 @@ jobs:
       - name: Cache Docker layers
         uses: actions/cache@v3
         env:
-          BASE_CACHE_KEY: ${{ github.job }}-${{ runner.os }}-${{ matrix.platform }}-
+          BASE_CACHE_KEY: "${{ github.job }}-${{ runner.os }}-\
+            ${{ matrix.image }}-${{ matrix.platform }}-"
         with:
           path: ${{ env.BUILDX_CACHE_DIR }}
           key: ${{ env.BASE_CACHE_KEY }}${{ github.sha }}
@@ -560,8 +564,8 @@ jobs:
             ${{ env.BASE_CACHE_KEY }}
       - name: Output source version to use
         run: echo "${{ needs.prepare.outputs.source_version }}"
-      - name: Build and push by digest (Docker Hub)
-        id: build-dh
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v5
         with:
           build-args: |
@@ -569,42 +573,20 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.metadata.outputs.labels }}
-          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,\
+          outputs: type=image,name=${{ matrix.image }},push-by-digest=true,\
             name-canonical=true,push=true
-      - name: Build and push by digest (GitHub Container Registry)
-        id: build-ghcr
-        uses: docker/build-push-action@v5
-        with:
-          build-args: |
-            VERSION=${{ needs.prepare.outputs.source_version }}
-          context: .
-          platforms: ${{ matrix.platform }}
-          labels: ${{ steps.metadata.outputs.labels }}
-          outputs: type=image,name=ghcr.io/${{ env.IMAGE_NAME }},push-by-digest=true,\
-            name-canonical=true,push=true
-      - name: Export digest (Docker Hub)
+      - name: Export digest
         run: |
-          mkdir --parents /tmp/digests/dh
-          digest="${{ steps.build-dh.outputs.digest }}"
-          touch "/tmp/digests/dh/${digest#sha256:}"
-      - name: Export digest (GitHub Container Registry)
-        run: |
-          mkdir --parents /tmp/digests/ghcr
-          digest="${{ steps.build-ghcr.outputs.digest }}"
-          touch "/tmp/digests/ghcr/${digest#sha256:}"
-      - name: Upload digest (Docker Hub)
+          mkdir --parents /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
-          name: digests-dh-${{ steps.sanitize.outputs.platform_pair }}
-          path: /tmp/digests/dh/*
-          retention-days: 1
-      - name: Upload digest (GitHub Container Registry)
-        uses: actions/upload-artifact@v4
-        with:
-          if-no-files-found: error
-          name: digests-ghcr-${{ steps.sanitize.outputs.platform_pair }}
-          path: /tmp/digests/ghcr/*
+          name: "digests-${{ steps.sanitize.outputs.image_pair }}-\
+            ${{ steps.sanitize.outputs.platform_pair }}"
+          path: /tmp/digests/*
           retention-days: 1
   merge-images:
     if: github.event_name != 'pull_request'
@@ -615,12 +597,23 @@ jobs:
       - test
       - build-images
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        image:
+          - ${{ vars.image_name }}
+          - ghcr.io/${{ vars.image_name }}
     steps:
       - id: harden-runner
         name: Harden the runner
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
+      - name: Sanitize image name
+        id: sanitize
+        run: |
+          image=${{ matrix.image }}
+          echo "image_pair=${image//\//-}" >> $GITHUB_OUTPUT
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -632,17 +625,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Download digests (Docker Hub)
+      - name: Download digests
         uses: actions/download-artifact@v4
         with:
-          path: /tmp/digests/dh
-          pattern: digests-dh-*
-          merge-multiple: true
-      - name: Download digests (GitHub Container Registry)
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests/ghcr
-          pattern: digests-ghcr-*
+          path: /tmp/digests
+          pattern: digests-${{ steps.sanitize.outputs.image_pair }}-*
           merge-multiple: true
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -659,28 +646,17 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=sha
-      - name: Create manifest list and push (Docker Hub)
-        working-directory: /tmp/digests/dh
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            $(jq -cr '.tags | map("--tag ${{ env.IMAGE_NAME }}:" + .) | join(" ")' \
+            $(jq -cr '.tags | map("--tag " + .) | join(" ")' \
             <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
-      - name: Create manifest list and push (GitHub Container Registry)
-        working-directory: /tmp/digests/ghcr
-        run: |
-          docker buildx imagetools create $(jq -cr \
-            '.tags | map("--tag ghcr.io/${{ env.IMAGE_NAME }}:" + .) | join(" ")' \
-            <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ env.IMAGE_NAME }}@sha256:%s ' *)
-      - name: Inspect image (Docker Hub)
+            $(printf '${{ matrix.image }}@sha256:%s ' *)
+      - name: Inspect image
         run: |
           docker buildx imagetools inspect \
-          ${{ env.IMAGE_NAME }}:${{ steps.metadata.outputs.version }}
-      - name: Inspect image (GitHub Container Registry)
-        run: |
-          docker buildx imagetools inspect \
-          ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.metadata.outputs.version }}
+          ${{ matrix.image }}:${{ steps.metadata.outputs.version }}
   push-readme:
     if: github.event_name != 'pull_request'
     name: Push the README to Docker Hub
