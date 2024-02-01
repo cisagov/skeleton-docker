@@ -673,10 +673,14 @@ jobs:
             '.tags | map("--tag ghcr.io/${{ env.IMAGE_NAME }}:" + .) | join(" ")' \
             <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'ghcr.io/${{ env.IMAGE_NAME }}@sha256:%s ' *)
-      - name: Inspect image
+      - name: Inspect image (Docker Hub)
         run: |
           docker buildx imagetools inspect \
-          ${{ matrix.image }}:${{ steps.metadata.outputs.version }}
+          ${{ env.IMAGE_NAME }}:${{ steps.metadata.outputs.version }}
+      - name: Inspect image (GitHub Container Registry)
+        run: |
+          docker buildx imagetools inspect \
+          ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.metadata.outputs.version }}
   push-readme:
     if: github.event_name != 'pull_request'
     name: Push the README to Docker Hub
