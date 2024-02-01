@@ -645,14 +645,14 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            $(jq -cr '.tags | map("--tag " + .) | join(" ")' \
+            $(jq -cr '.tags | map("--tag ${{ env.IMAGE_NAME }}:" + .) | join(" ")' \
             <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
       - name: Create manifest list and push (GitHub Container Registry)
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("--tag " + .) | join(" ")' \
+          docker buildx imagetools create $(jq -cr \
+            '.tags | map("--tag ghcr.io/${{ env.IMAGE_NAME }}:" + .) | join(" ")' \
             <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'ghcr.io/${{ env.IMAGE_NAME }}@sha256:%s ' *)
       - name: Inspect image
