@@ -306,8 +306,6 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v5
         with:
-          build-args: |
-            VERSION=${{ needs.prepare.outputs.source_version }}
           cache-from: type=local,src=${{ env.BUILDX_CACHE_DIR }}
           cache-to: type=local,dest=${{ env.BUILDX_CACHE_DIR }}
           context: .
@@ -459,8 +457,6 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v5
         with:
-          build-args: |
-            VERSION=${{ needs.prepare.outputs.source_version }}
           cache-from: type=local,src=${{ env.BUILDX_CACHE_DIR }}
           cache-to: type=local,dest=${{ env.BUILDX_CACHE_DIR }}
           context: .
