@@ -396,7 +396,7 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@v4
       - id: setup-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ steps.setup-env.outputs.python-version }}
       - name: Cache testing environments
