@@ -8,9 +8,9 @@ set -o errexit
 set -o pipefail
 
 # Stores the canonical version for the project.
-VERSION_FILE=version.txt
+VERSION_FILE=src/version.txt
 # Files that should be updated with the new version.
-VERSION_FILES=("$VERSION_FILE")
+VERSION_FILES=("$VERSION_FILE" README.md)
 
 USAGE=$(
   cat << END_OF_LINE
