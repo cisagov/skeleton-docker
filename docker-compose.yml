@@ -1,6 +1,8 @@
 ---
 # This Docker composition file is used to build and test the container
 
+name: skeleton-docker
+
 secrets:
   quote_txt:
     file: ./src/secrets/quote.txt
