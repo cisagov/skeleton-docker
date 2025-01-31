@@ -15,23 +15,23 @@ services:
       # e.g., --build-arg VERSION=0.0.1
       context: .
       dockerfile: Dockerfile
-    image: cisagov/example
-    init: true
-    restart: "no"
     environment:
       - ECHO_MESSAGE=Hello World from docker compose!
+    image: cisagov/example
+    init: true
     ports:
-      - target: 8421
-        published: 8421
+      - mode: host
         protocol: tcp
-        mode: host
+        published: 8421
+        target: 8421
+    restart: "no"
     secrets:
       - source: quote_txt
         target: quote.txt
 
   example-version:
     # Run the container to collect version information
+    command: --version
     image: cisagov/example
     init: true
     restart: "no"
-    command: --version
