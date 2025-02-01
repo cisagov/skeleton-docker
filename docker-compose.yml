@@ -22,7 +22,7 @@ services:
     ports:
       - mode: host
         protocol: tcp
-        published: 8421
+        published: "8421"
         target: 8421
     restart: "no"
     secrets:
