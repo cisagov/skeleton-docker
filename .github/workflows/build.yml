@@ -431,8 +431,32 @@ jobs:
           tags: ${{ needs.prepare.outputs.tags }}
           # For a list of pre-defined annotation keys and value types see:
           # https://github.com/opencontainers/image-spec/blob/master/annotations.md
-      - if: ${{ github.ref_name == 'develop' && github.event_name == 'push' }}
-        name: Update the Docker Hub description
+      - name: Setup tmate debug session
+        uses: mxschmitt/action-tmate@v3
+        if: env.RUN_TMATE
+  update-dockerhub:
+    if: ${{ github.ref_name == 'develop' && github.event_name == 'push' }}
+    name: Update the description for the image on Docker Hub
+    needs:
+      - diagnostics
+      - build-push-all
+    permissions:
+      # actions/checkout needs this to fetch code
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: GitHubSecurityLab/actions-permissions/monitor@v1
+        with:
+          # Uses the organization variable unless overridden
+          config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
+      - id: harden-runner
+        name: Harden the runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Update the Docker Hub description
         uses: peter-evans/dockerhub-description@v4
         with:
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -440,6 +464,3 @@ jobs:
           repository: ${{ env.IMAGE_NAME }}
           short-description: ${{ github.event.repository.description }}
           username: ${{ secrets.DOCKER_USERNAME }}
-      - name: Setup tmate debug session
-        uses: mxschmitt/action-tmate@v3
-        if: env.RUN_TMATE
