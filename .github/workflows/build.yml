@@ -375,7 +375,7 @@ jobs:
       packages: write
     runs-on: ubuntu-latest
     steps:
-      - uses: GitHubSecurityLab/actions-permissions/monitor@v1
+      - uses: mcdonnnj/actions-permissions/monitor@maintenance/update_python_package_dependencies
         with:
           # Uses the organization variable unless overridden
           config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
