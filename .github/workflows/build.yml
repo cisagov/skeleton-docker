@@ -522,7 +522,8 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         if: env.RUN_TMATE
   update-dockerhub:
-    if: ${{ github.ref_name == 'develop' && github.event_name == 'push' }}
+    if: ${{ github.ref_name == github.event.repository.default_branch \
+      && github.event_name == 'push' }}
     name: Update the description for the image on Docker Hub
     needs:
       - diagnostics
