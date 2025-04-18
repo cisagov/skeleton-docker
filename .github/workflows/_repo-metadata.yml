@@ -13,10 +13,11 @@ on:  # yamllint disable-line rule:truthy
 
 jobs:
   output-repo-metadata:
-    runs-on: ubuntu-latest
     outputs:
       image-name: ${{ steps.set-outputs.outputs.image-name }}
       image-platforms: ${{ steps.set-outputs.outputs.image-platforms }}
+    permissions: {}
+    runs-on: ubuntu-latest
     steps:
       - name: Set outputs for repository metadata
         id: set-outputs
