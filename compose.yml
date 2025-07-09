@@ -16,7 +16,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      - ECHO_MESSAGE=Hello World from docker compose!
+      - ECHO_MESSAGE=Hello World from Docker Compose!
     image: cisagov/example
     init: true
     ports:

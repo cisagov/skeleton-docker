@@ -9,7 +9,7 @@ import pytest
 from semver import parse_version_info
 
 ENV_VAR = "ECHO_MESSAGE"
-ENV_VAR_VAL = "Hello World from docker compose!"
+ENV_VAR_VAL = "Hello World from Docker Compose!"
 READY_MESSAGE = "This is a debug message"
 DIVISION_MESSAGE = "8 / 2 == 4.000000"
 SECRET_QUOTE = "Three may keep a secret, if two of them are dead."  # nosec
