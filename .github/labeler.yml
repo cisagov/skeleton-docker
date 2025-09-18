@@ -16,6 +16,7 @@ dependencies:
   - changed-files:
       - any-glob-to-any-file:
           # Add any dependency files used.
+          - "**/Pipfile*"
           - .pre-commit-config.yaml
           - requirements*.txt
 docker:
@@ -61,10 +62,14 @@ test:
       - any-glob-to-any-file:
           # Add any test-related files or paths.
           - .ansible-lint
+          - .bandit.yml
           - .flake8
           - .isort.cfg
           - .mdl_config.yaml
           - .yamllint
+          - compose.yml
+          - pytest.ini
+          - tests/**
 typescript:
   - changed-files:
       - any-glob-to-any-file:
@@ -77,4 +82,4 @@ version bump:
   - changed-files:
       - any-glob-to-any-file:
           # Ensure this matches your version tracking file(s).
-          - version.txt
+          - src/version.txt
