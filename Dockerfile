@@ -103,7 +103,7 @@ ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 ENV ECHO_MESSAGE="Hello World from Dockerfile"
 WORKDIR ${CISA_HOME}
 USER ${CISA_USER}:${CISA_GROUP}
-EXPOSE 8080/TCP
+EXPOSE 8080/tcp
 VOLUME ["/var/log"]
 ENTRYPOINT ["example"]
 CMD ["--log-level", "DEBUG", "8", "2"]
