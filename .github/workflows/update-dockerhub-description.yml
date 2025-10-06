@@ -94,7 +94,7 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v5
       - name: Update the Docker Hub description
-        uses: peter-evans/dockerhub-description@v4
+        uses: peter-evans/dockerhub-description@v5
         with:
           password: ${{ secrets.DOCKER_PASSWORD }}
           readme-filepath: README.md
