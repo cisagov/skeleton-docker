@@ -637,10 +637,16 @@ jobs:
       # Allows the workflow to mint the OIDC token necessary to
       # request a Sigstore signing certificate.
       id-token: write
-    runs-on: ubuntu-latest
+    # This line is long, but if I use a block style indicator then GH
+    # Actions doesn't parse and execute the expression.
+    # yamllint disable-line rule:line-length
+    runs-on: ubuntu-${{ startsWith(matrix.architecture, 'arm') && '24.04-arm' || 'latest' }}
     strategy:
       fail-fast: false
       matrix:
+        architecture:
+          - amd64
+          - arm64
         sbom-format:
           - cyclonedx-json
           - spdx-json
@@ -681,13 +687,13 @@ jobs:
       - name: Gemerate SBOM
         uses: anchore/sbom-action@v0
         with:
-          artifact-name: sbom.${{ matrix.sbom-format }}
+          artifact-name: sbom.${{ matrix.architecture }}.${{ matrix.sbom-format }}
           format: ${{ matrix.sbom-format }}
           image: >-
             ${{ needs.repo-metadata.outputs.image-name
             }}:${{ steps.dockerize-ref-name.outputs.ref }}
-          output-file: sbom.${{ matrix.sbom-format }}
+          output-file: sbom.${{ matrix.architecture }}.${{ matrix.sbom-format }}
       - name: Attest build provenance for the SBOM
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: sbom.${{ matrix.sbom-format }}
+          subject-path: sbom.${{ matrix.architecture }}.${{ matrix.sbom-format }}
