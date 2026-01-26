@@ -684,16 +684,29 @@ jobs:
           | tr '[:upper:]' '[:lower:]' \
           | tr '/' '-')
           echo "ref=${DOCKERIZED_REF}" >> $GITHUB_OUTPUT
-      - name: Gemerate SBOM
+      - name: Manipulate the repo name into the preferred format
+        id: manipulate-repo-name
+        run: |
+          NEW_NAME=$(echo "${{ github.repository}}" \
+          | tr '[:upper:]' '[:lower:]' \
+          | tr '/ ' '-')
+          echo "repo-name=${NEW_NAME}" >> $GITHUB_OUTPUT
+      - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          artifact-name: sbom.${{ matrix.architecture }}.${{ matrix.sbom-format }}
+          artifact-name: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
+            matrix.architecture }}.${{ matrix.sbom-format }}
           format: ${{ matrix.sbom-format }}
           image: >-
             ${{ needs.repo-metadata.outputs.image-name
             }}:${{ steps.dockerize-ref-name.outputs.ref }}
-          output-file: sbom.${{ matrix.architecture }}.${{ matrix.sbom-format }}
+          output-file: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
+            matrix.architecture }}.${{ matrix.sbom-format }}
       - name: Attest build provenance for the SBOM
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: sbom.${{ matrix.architecture }}.${{ matrix.sbom-format }}
+          subject-path: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
+            matrix.architecture }}.${{ matrix.sbom-format }}
