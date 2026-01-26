@@ -624,9 +624,9 @@ jobs:
     if: github.event_name != 'pull_request'
     name: Generate and upload SBOM
     needs:
+      - build-push-all
       - diagnostics
       - repo-metadata
-      - build-push-all
     permissions:
       # Allows us to read the SBOM artifact
       actions: read
