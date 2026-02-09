@@ -1,45 +1,45 @@
 {
-  "_meta": {
-    "hash": {
-      "sha256": "ade2727ed14697ce29bf60c173cefde5071a289bc72f0e5476706cde175b01ff"
+    "_meta": {
+        "hash": {
+            "sha256": "84384085b9d02ae50cb8d5c474bfea26396126a07ec248ece7fdccc8ff3f9aae"
+        },
+        "pipfile-spec": 6,
+        "requires": {
+            "python_full_version": "3.14.3"
+        },
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
     },
-    "pipfile-spec": 6,
-    "requires": {
-      "python_full_version": "3.13.5"
+    "default": {
+        "docopt": {
+            "hashes": [
+                "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"
+            ],
+            "version": "==0.6.2"
+        },
+        "example": {
+            "file": "https://github.com/cisagov/skeleton-python-library/archive/v0.2.2.tar.gz"
+        },
+        "schema": {
+            "hashes": [
+                "sha256:00bd977fadc7d9521bf289850cd8a8aa5f4948f575476b8daaa5c1b57af2dce1",
+                "sha256:e86cc08edd6fe6e2522648f4e47e3a31920a76e82cce8937535422e310862ab5"
+            ],
+            "version": "==0.7.8"
+        },
+        "setuptools": {
+            "hashes": [
+                "sha256:22e0a2d69474c6ae4feb01951cb69d515ed23728cf96d05513d36e42b62b37cb",
+                "sha256:70b18734b607bd1da571d097d236cfcfacaf01de45717d59e6e04b96877532e0"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==82.0.0"
+        }
     },
-    "sources": [
-      {
-        "name": "pypi",
-        "url": "https://pypi.org/simple",
-        "verify_ssl": true
-      }
-    ]
-  },
-  "default": {
-    "docopt": {
-      "hashes": [
-        "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"
-      ],
-      "version": "==0.6.2"
-    },
-    "example": {
-      "file": "https://github.com/cisagov/skeleton-python-library/archive/v0.2.2.tar.gz"
-    },
-    "schema": {
-      "hashes": [
-        "sha256:5d976a5b50f36e74e2157b47097b60002bd4d42e65425fcc9c9befadb4255dde",
-        "sha256:7da553abd2958a19dc2547c388cde53398b39196175a9be59ea1caf5ab0a1807"
-      ],
-      "version": "==0.7.7"
-    },
-    "setuptools": {
-      "hashes": [
-        "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922",
-        "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c"
-      ],
-      "markers": "python_version >= '3.9'",
-      "version": "==80.9.0"
-    }
-  },
-  "develop": {}
+    "develop": {}
 }
