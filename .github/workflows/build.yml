@@ -704,6 +704,7 @@ jobs:
           image: >-
             ${{ needs.repo-metadata.outputs.image-name
             }}:${{ steps.dockerize-ref-name.outputs.ref }}
+          platform: linux/${{ matrix.architecture }}
           output-file: >-
             ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
             matrix.architecture }}.${{ matrix.sbom-format }}
