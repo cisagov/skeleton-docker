@@ -707,7 +707,7 @@ jobs:
             matrix.architecture }}.${{ matrix.sbom-format }}
           format: ${{ matrix.sbom-format }}
           image: >-
-            ${{ needs.repo-metadata.outputs.image-name
+            docker.io/${{ needs.repo-metadata.outputs.image-name
             }}:${{ steps.dockerize-ref-name.outputs.ref }}
           platform: linux/${{ matrix.architecture }}
           output-file: >-
