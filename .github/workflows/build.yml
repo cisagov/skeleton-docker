@@ -713,9 +713,13 @@ jobs:
           output-file: >-
             ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
             matrix.architecture }}.${{ matrix.sbom-format }}
-      - name: Attest build provenance for the SBOM
-        uses: actions/attest-build-provenance@v3
+      - name: Create SBOM attestation
+        uses: actions/attest@v4
         with:
-          subject-path: >-
+          push-to-registry: true
+          sbom-path: >-
             ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
             matrix.architecture }}.${{ matrix.sbom-format }}
+          subject-name: >-
+            docker.io/${{ needs.repo-metadata.outputs.image-name
+            }}:${{ steps.dockerize-ref-name.outputs.ref }}
