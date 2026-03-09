@@ -505,6 +505,8 @@ jobs:
       - prepare
       - scan
       - test
+    outputs:
+      digest: ${{ steps.docker_push.outputs.digest }}
     permissions:
       # actions/checkout needs this to fetch code
       contents: read
@@ -633,6 +635,7 @@ jobs:
     permissions:
       # Allows us to read the SBOM artifact
       actions: read
+      # Necessary to create the artifact storage record
       artifact-metadata: write
       attestations: write
       # Allows us to add the SBOM to the release
@@ -640,16 +643,15 @@ jobs:
       # Allows the workflow to mint the OIDC token necessary to
       # request a Sigstore signing certificate.
       id-token: write
-    # This line is long, but if I use a block style indicator then GH
-    # Actions doesn't parse and execute the expression.
-    # yamllint disable-line rule:line-length
-    runs-on: ubuntu-${{ startsWith(matrix.architecture, 'arm') && '24.04-arm' || 'latest' }}
+      # Necessary to push the SBOM attestation to ghcr.io
+      packages: write
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        architecture:
-          - amd64
-          - arm64
+        registry:
+          - docker.io
+          - ghcr.io
         sbom-format:
           - cyclonedx-json
           - spdx-json
@@ -699,27 +701,34 @@ jobs:
         with:
           password: ${{ secrets.DOCKER_PASSWORD }}
           username: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
           artifact-name: >-
-            ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
-            matrix.architecture }}.${{ matrix.sbom-format }}
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
           format: ${{ matrix.sbom-format }}
           image: >-
-            docker.io/${{ needs.repo-metadata.outputs.image-name
+            ${{ matrix.registry }}/${{ needs.repo-metadata.outputs.image-name
             }}:${{ steps.dockerize-ref-name.outputs.ref }}
-          platform: linux/${{ matrix.architecture }}
           output-file: >-
-            ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
-            matrix.architecture }}.${{ matrix.sbom-format }}
-      - name: Create SBOM attestation
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
+      - name: Create SBOM attestation for Docker image
         uses: actions/attest@v4
         with:
           push-to-registry: true
           sbom-path: >-
-            ${{ steps.manipulate-repo-name.outputs.repo-name }}.${{
-            matrix.architecture }}.${{ matrix.sbom-format }}
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
+          subject-digest: >-
+            ${{ needs.build-push-all.outputs.digest }}
           subject-name: >-
-            docker.io/${{ needs.repo-metadata.outputs.image-name
-            }}:${{ steps.dockerize-ref-name.outputs.ref }}
+            ${{ matrix.registry
+            }}/${{ needs.repo-metadata.outputs.image-name }}
