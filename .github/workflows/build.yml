@@ -720,6 +720,12 @@ jobs:
           output-file: >-
             ${{ steps.manipulate-repo-name.outputs.repo-name
             }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
+      - name: Create provenance attestation for SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
       - name: Create SBOM attestation for Docker image
         uses: actions/attest@v4
         with:
