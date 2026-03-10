@@ -302,13 +302,11 @@ jobs:
       - repo-metadata
       - prepare
     permissions:
-      # Allows us to read the artifacts
-      actions: read
       # Necessary to create the artifact storage record
       artifact-metadata: write
       attestations: write
-      # Allows us to add artifacts to the release.
-      contents: write
+      # Allows read access to repository contents (e.g., for checkout).
+      contents: read
       # Allows the workflow to mint the OIDC token necessary to
       # request a Sigstore signing certificate.
       id-token: write
