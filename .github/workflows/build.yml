@@ -302,8 +302,16 @@ jobs:
       - repo-metadata
       - prepare
     permissions:
-      # actions/checkout needs this to fetch code
-      contents: read
+      # Allows us to read the artifacts
+      actions: read
+      # Necessary to create the artifact storage record
+      artifact-metadata: write
+      attestations: write
+      # Allows us to add artifacts to the release.
+      contents: write
+      # Allows the workflow to mint the OIDC token necessary to
+      # request a Sigstore signing certificate.
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Apply standard cisagov job preamble
@@ -364,6 +372,10 @@ jobs:
         with:
           archive: false
           path: image.tar.gz
+      - name: Create provenance attestation for artifacts
+        uses: actions/attest@v4
+        with:
+          subject-path: dist
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
         if: env.RUN_TMATE
