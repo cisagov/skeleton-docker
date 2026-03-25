@@ -19,6 +19,7 @@ dependencies:
           - "**/Pipfile*"
           - .pre-commit-config.yaml
           - requirements*.txt
+          - src/requirements-actually-constraints.txt
 docker:
   - changed-files:
       - any-glob-to-any-file:
