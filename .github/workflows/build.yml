@@ -363,6 +363,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           archive: false
+          name: image.tar.gz
           path: image.tar.gz
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
