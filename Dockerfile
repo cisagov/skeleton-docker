@@ -64,6 +64,7 @@ FROM docker.io/library/python:3.14.3-alpine3.23 AS build-stage
 # LABEL org.opencontainers.image.authors="vm-dev@gwe.cisa.dhs.gov"
 LABEL org.opencontainers.image.authors="github@cisa.dhs.gov"
 LABEL org.opencontainers.image.vendor="Cybersecurity and Infrastructure Security Agency"
+LABEL org.opencontainers.image.source="https://github.com/cisagov/skeleton-docker"
 
 ###
 # Unprivileged user setup variables
