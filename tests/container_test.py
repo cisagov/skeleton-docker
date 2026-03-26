@@ -73,9 +73,10 @@ def test_log_version(dockerc, project_version, version_container):
     # make sure container exited if running test isolated
     dockerc.wait(version_container.id)
     log_version = semver.version.Version.parse(version_container.logs().strip())
-    assert log_version == semver.version.Version.parse(
-        project_version
-    ), f"Container version output to log does not match project version file {VERSION_FILE}"
+    assert log_version == semver.version.Version.parse(project_version), (
+        "Container version output to log does not match project version file "
+        f"{VERSION_FILE}"
+    )
 
 
 @pytest.mark.skipif(
