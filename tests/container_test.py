@@ -28,7 +28,7 @@ def test_container_count(dockerc):
 def test_wait_for_ready(main_container):
     """Wait for container to be ready."""
     timeout = 10
-    for i in range(timeout):
+    for _i in range(timeout):
         if READY_MESSAGE in main_container.logs():
             break
         time.sleep(1)
