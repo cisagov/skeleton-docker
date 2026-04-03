@@ -9,6 +9,9 @@ ARG CISA_USER="cisa"
 ENV CISA_HOME="/home/${CISA_USER}"
 ENV VIRTUAL_ENV="${CISA_HOME}/.venv"
 
+# Work out of /tmp for this stage
+WORKDIR /tmp
+
 # Copy in the pip constraints file that controls the versions installed below
 COPY src/requirements-actually-constraints.txt ./constraints.txt
 
@@ -47,7 +50,6 @@ RUN python3 -m pip install --no-cache-dir --upgrade \
 # Note that pipenv will install into a virtual environment if the VIRTUAL_ENV
 # environment variable is set.
 ###
-WORKDIR /tmp
 COPY src/Pipfile src/Pipfile.lock ./
 RUN pipenv install --clear --deploy --extra-pip-args "--no-cache-dir" --verbose
 
