@@ -62,6 +62,11 @@ updates:
     schedule:
       interval: weekly
 
+  - directory: /src
+    package-ecosystem: pip
+    schedule:
+      interval: weekly
+
   - directory: /
     package-ecosystem: terraform
     schedule:
