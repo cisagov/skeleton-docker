@@ -47,7 +47,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade \
 ###
 WORKDIR /tmp
 COPY src/Pipfile src/Pipfile.lock ./
-RUN pipenv install --clear --deploy --extra-pip-args "--no-cache-dir" --verbose
+RUN pipenv install --clear --deploy --extra-pip-args="--no-cache-dir" --verbose
 
 # Official Docker images are in the form library/<app> while non-official
 # images are in the form <user>/<app>.
