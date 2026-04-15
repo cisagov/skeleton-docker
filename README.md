@@ -223,7 +223,7 @@ Build the image locally using this git repository as the [build context](https:/
 ```console
 docker build \
   --tag cisagov/example:1.0.0 \
-  https://github.com/cisagov/example.git#develop
+  https://github.com/cisagov/skeleton-docker.git#v1.0.0
 ```
 
 ## Cross-platform builds ##
@@ -236,8 +236,8 @@ Docker:
    or the command line:
 
     ```console
-    git clone https://github.com/cisagov/example.git
-    cd example
+    git clone https://github.com/cisagov/skeleton-docker.git
+    cd skeleton-docker
     ```
 
 1. Create the `Dockerfile-x` file with `buildx` platform support:
