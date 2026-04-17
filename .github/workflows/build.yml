@@ -302,8 +302,14 @@ jobs:
       - repo-metadata
       - prepare
     permissions:
-      # actions/checkout needs this to fetch code
+      # Necessary to create the artifact storage record
+      artifact-metadata: write
+      attestations: write
+      # Allows read access to repository contents (e.g., for checkout).
       contents: read
+      # Allows the workflow to mint the OIDC token necessary to
+      # request a Sigstore signing certificate.
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Apply standard cisagov job preamble
@@ -364,6 +370,10 @@ jobs:
         with:
           archive: false
           path: image.tar.gz
+      - name: Create provenance attestation for artifacts
+        uses: actions/attest@v4
+        with:
+          subject-path: image.tar.gz
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
         if: env.RUN_TMATE
@@ -505,6 +515,8 @@ jobs:
       - prepare
       - scan
       - test
+    outputs:
+      digest: ${{ steps.docker_push.outputs.digest }}
     permissions:
       # actions/checkout needs this to fetch code
       contents: read
@@ -612,3 +624,127 @@ jobs:
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
         if: env.RUN_TMATE
+  generate-sbom:
+    # Generate an SBOM for the Docker image and, if there is a
+    # release, upload it as an asset to the release.
+    #
+    # This job is located in this workflow as opposed to a separate
+    # release workflow because it can only run after the
+    # build-push-all job.  Putting it in a separate workflow would
+    # require us to introduce a dependency of the release workflow on
+    # this one.
+    #
+    # This if statement is present to keep the push and pull_request
+    # events from both causing the job to be run.
+    if: github.event_name != 'pull_request'
+    name: Generate and upload SBOM
+    needs:
+      - build-push-all
+      - diagnostics
+      - repo-metadata
+    permissions:
+      # Allows us to read the SBOM artifact
+      actions: read
+      # Necessary to create the artifact storage record
+      artifact-metadata: write
+      attestations: write
+      # Allows us to add the SBOM to the release
+      contents: write
+      # Allows the workflow to mint the OIDC token necessary to
+      # request a Sigstore signing certificate.
+      id-token: write
+      # Necessary to push the SBOM attestation to ghcr.io
+      packages: write
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        registry:
+          - docker.io
+          - ghcr.io
+        sbom-format:
+          - cyclonedx-json
+          - spdx-json
+    steps:
+      - name: Apply standard cisagov job preamble
+        uses: cisagov/action-job-preamble@v1
+        with:
+          # This functionality is poorly implemented and has been
+          # causing problems due to the MITM implementation hogging or
+          # leaking memory.  As a result we disable it by default.  If
+          # you want to temporarily enable it, simply set
+          # monitor_permissions equal to "true".
+          #
+          # TODO: Re-enable this functionality when practical.  See
+          # cisagov/skeleton-docker#224 for more details.
+          monitor_permissions: "false"
+          # Use a variable to specify the permissions monitoring
+          # configuration. By default this will yield the
+          # configuration stored in the cisagov organization-level
+          # variable, but if you want to use a different configuration
+          # then simply:
+          # 1. Create a repository-level variable with the name
+          # ACTIONS_PERMISSIONS_CONFIG.
+          # 2. Set this new variable's value to the configuration you
+          # want to use for this repository.
+          #
+          # Note in particular that changing the permissions
+          # monitoring configuration *does not* require you to modify
+          # this workflow.
+          permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
+      - name: Manipulate the ref name into the format that Docker prefers
+        id: dockerize-ref-name
+        run: |
+          DOCKERIZED_REF=$(echo "${{ github.ref_name}}" \
+          | tr '[:upper:]' '[:lower:]' \
+          | tr '/' '-')
+          echo "ref=${DOCKERIZED_REF}" >> $GITHUB_OUTPUT
+      - name: Manipulate the repo name into the preferred format
+        id: manipulate-repo-name
+        run: |
+          NEW_NAME=$(echo "${{ github.repository}}" \
+          | tr '[:upper:]' '[:lower:]' \
+          | tr '/ ' '-')
+          echo "repo-name=${NEW_NAME}" >> $GITHUB_OUTPUT
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          artifact-name: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
+          format: ${{ matrix.sbom-format }}
+          image: >-
+            ${{ matrix.registry }}/${{ needs.repo-metadata.outputs.image-name
+            }}:${{ steps.dockerize-ref-name.outputs.ref }}
+          output-file: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
+      - name: Create provenance attestation for SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
+      - name: Create SBOM attestation for Docker image
+        uses: actions/attest@v4
+        with:
+          push-to-registry: true
+          sbom-path: >-
+            ${{ steps.manipulate-repo-name.outputs.repo-name
+            }}.${{ matrix.registry }}.${{ matrix.sbom-format }}
+          subject-digest: >-
+            ${{ needs.build-push-all.outputs.digest }}
+          subject-name: >-
+            ${{ matrix.registry
+            }}/${{ needs.repo-metadata.outputs.image-name }}
