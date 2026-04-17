@@ -373,7 +373,7 @@ jobs:
       - name: Create provenance attestation for artifacts
         uses: actions/attest@v4
         with:
-          subject-path: dist
+          subject-path: image.tar.gz
       - name: Setup tmate debug session
         uses: mxschmitt/action-tmate@v3
         if: env.RUN_TMATE
