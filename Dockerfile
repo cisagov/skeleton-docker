@@ -9,32 +9,40 @@ ARG CISA_USER="cisa"
 ENV CISA_HOME="/home/${CISA_USER}"
 ENV VIRTUAL_ENV="${CISA_HOME}/.venv"
 
-# Versions of the Python packages installed directly
-ENV PYTHON_PIP_VERSION=26.0.1
-ENV PYTHON_PIPENV_VERSION=2026.0.3
-ENV PYTHON_SETUPTOOLS_VERSION=82.0.0
+# Work out of /tmp for this stage
+WORKDIR /tmp
+
+# Copy in the pip constraints file that controls the versions installed below
+COPY src/requirements-actually-constraints.txt ./constraints.txt
 
 ###
-# Install the specified versions of pip and setuptools into the system
-# Python environment; install the specified version of pipenv into the system Python
-# environment; set up a Python virtual environment (venv); and install the specified
-# versions of pip and setuptools into the venv.
+# Install pip and setuptools into the system Python environment, install
+# pipenv into the system Python environment, set up a Python virtual
+# environment (venv), and install pip and setuptools into the venv.
 #
 # Note that we use the --no-cache-dir flag to avoid writing to a local
 # cache.  This results in a smaller final image, at the cost of
 # slightly longer install times.
+#
+# Note that we use the --constraint flag to specify a pip constraints
+# file that controls which package versions are installed. Please see
+# the documentation for more information:
+# https://pip.pypa.io/en/stable/user_guide/#constraints-files
 ###
 RUN python3 -m pip install --no-cache-dir --upgrade \
-        pip==${PYTHON_PIP_VERSION} \
-        setuptools==${PYTHON_SETUPTOOLS_VERSION} \
+      --constraint constraints.txt \
+      pip \
+      setuptools \
     && python3 -m pip install --no-cache-dir --upgrade \
-        pipenv==${PYTHON_PIPENV_VERSION} \
+      --constraint constraints.txt \
+      pipenv \
     # Manually create the virtual environment
     && python3 -m venv ${VIRTUAL_ENV} \
     # Ensure the core Python packages are installed in the virtual environment
     && ${VIRTUAL_ENV}/bin/python3 -m pip install --no-cache-dir --upgrade \
-        pip==${PYTHON_PIP_VERSION} \
-        setuptools==${PYTHON_SETUPTOOLS_VERSION}
+        --constraint constraints.txt \
+        pip \
+        setuptools
 
 ###
 # Install the Python dependencies into the virtual environment.
@@ -42,7 +50,6 @@ RUN python3 -m pip install --no-cache-dir --upgrade \
 # Note that pipenv will install into a virtual environment if the VIRTUAL_ENV
 # environment variable is set.
 ###
-WORKDIR /tmp
 COPY src/Pipfile src/Pipfile.lock ./
 RUN pipenv install --clear --deploy --extra-pip-args "--no-cache-dir" --verbose
 

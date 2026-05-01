@@ -1,0 +1,11 @@
+###
+# This is a pip constraints file:
+# https://pip.pypa.io/en/stable/user_guide/#constraints-files
+#
+# Note on the file's name:
+# Since dependabot does not support updating pip constraints files we have to trick
+# it into seeing the file as a pip requirements file to get automatic updates.
+###
+pip==26.0.1
+pipenv==2026.0.3
+setuptools==82.0.0
