@@ -58,6 +58,9 @@ updates:
       interval: weekly
 
   - directory: /
+    exclude-paths:
+      # Allow updates for dependencies here to be handled separately.
+      - src/**
     package-ecosystem: pip
     schedule:
       interval: weekly
