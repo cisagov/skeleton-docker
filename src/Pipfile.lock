@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "84384085b9d02ae50cb8d5c474bfea26396126a07ec248ece7fdccc8ff3f9aae"
+            "sha256": "0df54d2c7bbd853ef9102b5318b6cc0801304e677baccc4ccb159dc9e0e333dc"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_full_version": "3.14.3"
+            "python_full_version": "3.14.5"
         },
         "sources": [
             {
@@ -34,11 +34,11 @@
         },
         "setuptools": {
             "hashes": [
-                "sha256:22e0a2d69474c6ae4feb01951cb69d515ed23728cf96d05513d36e42b62b37cb",
-                "sha256:70b18734b607bd1da571d097d236cfcfacaf01de45717d59e6e04b96877532e0"
+                "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9",
+                "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==82.0.0"
+            "version": "==82.0.1"
         }
     },
     "develop": {}
