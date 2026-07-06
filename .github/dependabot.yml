@@ -62,6 +62,12 @@ updates:
     schedule:
       interval: weekly
 
+  - directory: /src
+    package-ecosystem: pip
+    schedule:
+      interval: weekly
+    versioning-strategy: lockfile-only
+
   - directory: /
     package-ecosystem: terraform
     schedule:
