@@ -501,9 +501,6 @@ jobs:
     permissions:
       # actions/checkout needs this to fetch code
       contents: read
-      # When Dependabot creates a PR it requires this permission in
-      # order to push Docker images to ghcr.io.
-      packages: write
     runs-on: ubuntu-latest
     strategy:
       # We want each platform to build regardless of failures on other platforms
