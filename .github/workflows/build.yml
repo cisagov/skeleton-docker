@@ -255,7 +255,7 @@ jobs:
           # monitoring configuration *does not* require you to modify
           # this workflow.
           permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: generate-metadata
         name: Generate Docker image metadata
         uses: docker/metadata-action@v6
@@ -437,7 +437,7 @@ jobs:
           permissions_monitoring_config: ${{ vars.ACTIONS_PERMISSIONS_CONFIG }}
       - id: setup-env
         uses: cisagov/setup-env-github-action@v2
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: setup-python
         uses: actions/setup-python@v6
         with:
