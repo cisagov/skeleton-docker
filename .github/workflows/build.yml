@@ -450,9 +450,9 @@ jobs:
             steps.setup-python.outputs.python-version }}-
         with:
           key: >-
-            ${{ env.BASE_CACHE_KEY }}${{
-            hashFiles('**/requirements-test.txt') }}-${{
-            hashFiles('**/requirements.txt') }}
+            ${{ env.BASE_CACHE_KEY }}${{ hashFiles(
+            '**/requirements-test.txt',
+            '**/requirements.txt') }}
           path: ${{ env.PIP_CACHE_DIR }}
           restore-keys: |
             ${{ env.BASE_CACHE_KEY }}
