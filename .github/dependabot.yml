@@ -68,6 +68,12 @@ updates:
       interval: weekly
     versioning-strategy: increase-if-necessary
 
+  - directory: /src
+    package-ecosystem: pip
+    schedule:
+      interval: weekly
+    versioning-strategy: increase-if-necessary
+
   # Uncomment this section if you have Terraform code in your project.
   # - directory: /
   #   package-ecosystem: terraform
