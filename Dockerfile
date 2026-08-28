@@ -1,6 +1,6 @@
 # Official Docker images are in the form library/<app> while non-official
 # images are in the form <user>/<app>.
-FROM docker.io/library/python:3.14.3-alpine3.23 AS compile-stage
+FROM docker.io/library/python:3.14.7-alpine3.24 AS compile-stage
 
 ###
 # Unprivileged user variables
@@ -13,9 +13,9 @@ ENV VIRTUAL_ENV="${CISA_HOME}/.venv"
 # renovate: datasource=pypi depName=pip
 ENV PYTHON_PIP_VERSION=26.0.1
 # renovate: datasource=pypi depName=pipenv
-ENV PYTHON_PIPENV_VERSION=2026.0.3
+ENV PYTHON_PIPENV_VERSION=2026.5.2
 # renovate: datasource=pypi depName=setuptools
-ENV PYTHON_SETUPTOOLS_VERSION=82.0.0
+ENV PYTHON_SETUPTOOLS_VERSION=82.0.1
 
 ###
 # Install the specified versions of pip and setuptools into the system
@@ -47,11 +47,11 @@ RUN python3 -m pip install --no-cache-dir --upgrade \
 ###
 WORKDIR /tmp
 COPY src/Pipfile src/Pipfile.lock ./
-RUN pipenv install --clear --deploy --extra-pip-args "--no-cache-dir" --verbose
+RUN pipenv install --clear --deploy --extra-pip-args="--no-cache-dir" --verbose
 
 # Official Docker images are in the form library/<app> while non-official
 # images are in the form <user>/<app>.
-FROM docker.io/library/python:3.14.3-alpine3.23 AS build-stage
+FROM docker.io/library/python:3.14.7-alpine3.24 AS build-stage
 
 ###
 # For a list of pre-defined annotation keys and value types see:
