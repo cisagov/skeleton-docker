@@ -1,6 +1,8 @@
 # Official Docker images are in the form library/<app> while non-official
 # images are in the form <user>/<app>.
-FROM docker.io/library/python:3.14.7-alpine3.24 AS compile-stage
+# Use Amazon ECR pull-through cache.  For more info, see:
+# https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html#pull-through-cache-considerations
+FROM public.ecr.aws/docker/library/python:3.14.7-alpine3.24 AS compile-stage
 
 ###
 # Unprivileged user variables
@@ -51,7 +53,9 @@ RUN pipenv install --clear --deploy --extra-pip-args="--no-cache-dir" --verbose
 
 # Official Docker images are in the form library/<app> while non-official
 # images are in the form <user>/<app>.
-FROM docker.io/library/python:3.14.7-alpine3.24 AS build-stage
+# Use Amazon ECR pull-through cache.  For more info, see:
+# https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html#pull-through-cache-considerations
+FROM public.ecr.aws/docker/library/python:3.14.7-alpine3.24 AS build-stage
 
 ###
 # For a list of pre-defined annotation keys and value types see:
