@@ -18,7 +18,7 @@ on:  # yamllint disable-line rule:truthy
     types:
       - apb
   schedule:
-    - cron: 00 00 * * *  # everyday at midnight
+    - cron: 05 00 * * *  # everyday at 12:05 AM
       timezone: America/New_York
   workflow_dispatch:
     inputs:
