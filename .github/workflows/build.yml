@@ -18,7 +18,8 @@ on:  # yamllint disable-line rule:truthy
     types:
       - apb
   schedule:
-    - cron: 0 10 * * *  # everyday at 10am
+    - cron: 05 00 * * *  # everyday at 12:05 AM
+      timezone: America/New_York
   workflow_dispatch:
     inputs:
       image-tag:
