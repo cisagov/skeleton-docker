@@ -7,6 +7,9 @@
 
 updates:
   - directory: /
+    # ignore:
+    #   # Managed by cisagov/skeleton-docker
+    #   - dependency-name: docker.io/library/python
     package-ecosystem: docker
     schedule:
       interval: weekly
